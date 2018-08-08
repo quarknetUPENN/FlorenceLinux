@@ -56,19 +56,34 @@ int main(int argc, char *argv[]) {
     tdc[0] = 0;
 
     int l1as_to_send = 11;
-    if (argc >= 2){
-        l1as_to_send = atoi(argv[1]);
-    }
 
-    if (argc == 2)
-        getL1aSet(l1as_to_send);
-    else {
-        for (int n = 2; n < argc; n++) {
-            cccd(comms, Reg, WR, Thresh1, CHIPID_ALL, (unsigned int) atoi(argv[n]));
-            cccd(comms, Reg, WR, Thresh2, CHIPID_ALL, (unsigned int) atoi(argv[n]));
 
+    switch(argc){
+        case 1: {
             getL1aSet(l1as_to_send);
+            break;
         }
+        case 2: {
+            l1as_to_send = atoi(argv[1]);
+            getL1aSet(l1as_to_send);
+            break;
+        }
+        case 3: {
+            l1as_to_send = atoi(argv[1]);
+
+            std::ifstream threshfile(argv[2]);
+            std::string line;
+            while (std::getline(threshfile, line)) {
+                cccd(comms, Reg, WR, Thresh1, CHIPID_ALL, (unsigned int) stoi(line));
+                cccd(comms, Reg, WR, Thresh2, CHIPID_ALL, (unsigned int) stoi(line));
+
+                getL1aSet(l1as_to_send);
+            }
+            break;
+        }
+        default:
+            getL1aSet(l1as_to_send);
+            break;
     }
 
     sockSend("End\n");
