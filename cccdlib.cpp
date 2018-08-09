@@ -7,6 +7,7 @@
 
 #define CHECK_BIT(var, pos) (((var)>>(pos)) & 1)
 
+// Overloaded method to send a read register command, since it requires no payload
 int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg registers, int chipId) {
     if ((command != Reg) || (isRead == WR)) {
         printf("Invalid number of fields to perform a reg read!  Ignoring");
@@ -15,6 +16,7 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
     return cccd(comms, command, isRead, registers, chipId, 0);
 }
 
+// Overloaded method to send a "pure" command requiring no arguments - L1A, SoftRst, BxRst
 int cccd(volatile unsigned int * comms, enum cmd command) {
     if (command == Reg) {
         printf("Invalid number of fields to perform a reg read or write!  Ignoring");
@@ -23,6 +25,8 @@ int cccd(volatile unsigned int * comms, enum cmd command) {
     return cccd(comms, command, false, Config, 0, 0);
 }
 
+// Base method to communicate with the cccd module by parsing these arguments and sending them to a binary register
+// unneeded fields are ignored
 int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg registers, int chipId, unsigned int payload) {
     if (chipId > CHIPID_ALL) {
         printf("Unrecognized chipId %u requested! Ignoring\n", chipId);
@@ -40,6 +44,7 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
             cmdlength = 0b00001100;
             comms[5] = 0;
         } else {
+            // ensures that the data is MSB-aligned, since varying data widths exist for various commands
             switch (registers) {
                 case Config:
                     cmdlength = 0b00100100;
@@ -75,6 +80,7 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
     comms[0] = (0 << 31) + field15;
     comms[0] = (1 << 31) + field15;
 
+    // wait until the cccd acknowledges the read (or write) being finished, or we time out
     int delay = 0;
     while (true) {
         if (isRead) {
@@ -99,7 +105,8 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
     return 0;
 }
 
-// note, printb will perform multiple reads from the address given
+// note, printb will perform multiple reads from the address given, so calling it on dips[0] doesn't work
+// prints the number at the point out in binary
 void printb(volatile void *ptr) {
     size_t const size = sizeof(ptr);
     auto b = (unsigned char *) ptr;

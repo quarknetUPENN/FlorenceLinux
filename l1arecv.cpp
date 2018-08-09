@@ -15,7 +15,7 @@
 #include "cccdlib.h"
 #include "l1arecv.h"
 
-
+// the IP address and port for us to connect to on the Ubuntu computer
 #define SOCKSERV "169.254.27.143"
 #define PORT 8080
 
@@ -52,12 +52,16 @@ int main(int argc, char *argv[]) {
     printf("done\n");
 
 
-
+    // make sure our run is stopped
     tdc[0] = 0;
 
     int l1as_to_send = 11;
 
-
+    // if there are no arguments, just send 11 l1as by default
+    // if there is 1 arg, interpret it as the number of l1as to send
+    // if there are 2 args, interpret the first as the number of l1as to send
+    // and the second as the name of a file containing numbers seperated by \n chars
+    // For each number in the file, set the thresholds to that value and then send l1as_to_send number of l1as
     switch(argc){
         case 1: {
             getL1aSet(l1as_to_send);
@@ -103,31 +107,35 @@ int main(int argc, char *argv[]) {
 }
 
 void getL1aSet(int l1as_to_send) {
-
+    // start the run by entering data taking mode, with all 0s for the trig setup indicating continuous trigger
     tdc[0] = 0b10000000000000000000000000000000;
 
     int l1as_sent = 0;
     while (true) {
-            if (l1as_to_send != -1) {
-                if (l1as_sent >= l1as_to_send) {
-                    break;
-                }
-            }
-
-            if (dips[2] == 0) {
-                sockSend("Divider\n");
-                for (int j = 0; j < 662; j++) {
-                    sockSend("[" + std::__cxx11::to_string(dips[0]) + "," + std::__cxx11::to_string(dips[1]) + "," +
-                             std::__cxx11::to_string(dips[2]) + "]\n");
-                }
-                l1as_sent++;
+        if (l1as_to_send != -1) {
+            if (l1as_sent >= l1as_to_send) {
+                break;
             }
         }
+
+        // make sure we aren't empty or overflowed.  If we aren't, then send all of the information in dips over
+        // the socket, using "Divider" to signify the start of a new L1A
+        if (dips[2] == 0) {
+            sockSend("Divider\n");
+            for (int j = 0; j < 662; j++) {
+                sockSend("[" + std::__cxx11::to_string(dips[0]) + "," + std::__cxx11::to_string(dips[1]) + "," +
+                         std::__cxx11::to_string(dips[2]) + "]\n");
+            }
+            l1as_sent++;
+        }
+    }
+
+    // end the run
     tdc[0] = 0;
 }
 
 int mmapAxiSlaves() {
-    int mem_fd = 0;                 // /dev/mem memory file descriptor
+    int mem_fd = 0;
     mem_fd = open("/dev/mem", O_RDWR);
     if (mem_fd == -1) {
         printf("Error! mem_fd: 0x%x\n", mem_fd);
@@ -183,6 +191,7 @@ int establishSocket() {
     return 0;
 }
 
+// send a string over the socket
 void sockSend(const std::string msg){
     const char * msgpt = msg.c_str();
     send(sock, msgpt, strlen(msgpt), 0);

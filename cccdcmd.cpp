@@ -35,6 +35,8 @@ int main(int argc, char *argv[]){
                                             {"BxRst", BxRst}};
     std::map<std::string,bool> rwmap = {{"RD", RD},
                                         {"WR", WR}};
+
+    // use the maps above to decode the number of arguments into a command that the cccdlib can take
     switch (argc){
         case 2:
             cccd(comms, cmdmap[argv[1]]);
@@ -50,6 +52,7 @@ int main(int argc, char *argv[]){
             printf("Incorrect number of arguments supplied\n");
     }
 
+    // if this was a read operation, print the value we got back
     if (argc >= 3){
         if(rwmap[argv[2]] == RD){
             printb(&comms[10]);
