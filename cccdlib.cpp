@@ -10,7 +10,7 @@
 // Overloaded method to send a read register command, since it requires no payload
 int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg registers, int chipId) {
     if ((command != Reg) || (isRead == WR)) {
-        printf("Invalid number of fields to perform a reg read!  Ignoring");
+        fprintf(stderr, "Invalid number of fields to perform a reg read!  Ignoring");
         return 1;
     }
     return cccd(comms, command, isRead, registers, chipId, 0);
@@ -19,7 +19,7 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
 // Overloaded method to send a "pure" command requiring no arguments - L1A, SoftRst, BxRst
 int cccd(volatile unsigned int * comms, enum cmd command) {
     if (command == Reg) {
-        printf("Invalid number of fields to perform a reg read or write!  Ignoring");
+        fprintf(stderr, "Invalid number of fields to perform a reg read or write!  Ignoring");
         return 1;
     }
     return cccd(comms, command, false, Config, 0, 0);
@@ -65,14 +65,14 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
                 default:
                     cmdlength = 0;
                     comms[5] = 0;
-                    printf("Unrecognized register %u requested! Ignoring\n", registers);
+                    fprintf(stderr, "Unrecognized register %u requested! Ignoring\n", registers);
                     return 2;
             }
         }
 
         field15 = (command << 24) + (cmdlength << 16) + (chipId << 10) + ((isRead ? 1 : 0) << 9) + (registers << 4);
     } else {
-        printf("Unrecognized command %u requested! Ignoring\n", command);
+        fprintf(stderr, "Unrecognized command %u requested! Ignoring\n", command);
         return 3;
     }
 
@@ -96,7 +96,7 @@ int cccd(volatile unsigned int * comms, enum cmd command, bool isRead, enum reg 
 
 
         if (delay > 10000) {
-            printf("ERROR: moving on, timed out trying to %s command %X\n", isRead ? "receive data from" : "send",
+            fprintf(stderr, "ERROR: moving on, timed out trying to %s command %X\n", isRead ? "receive data from" : "send",
                    field15);
             return 4;
         }

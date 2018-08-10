@@ -39,14 +39,14 @@ volatile int sock = 0;
 int main(int argc, char *argv[]) {
     printf("Memory mapping the axi slaves...");
     if (mmapAxiSlaves() != 0) {
-        printf("Failed!  Exiting");
+        fprintf(stderr, "Failed!  Exiting");
         return 1;
     }
     printf("done\n");
 
     printf("Establishing socket connection to %s on port %u...", SOCKSERV, PORT);
     if (establishSocket() != 0){
-        printf("Exiting");
+        fprintf(stderr, "Exiting");
         return 1;
     }
     printf("done\n");
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     printf("Unmapping the axi slaves from memory...");
     if (munmapAxiSlaves() != 0) {
-        printf("Failed to unmap memory for axi slaves!  Exiting");
+        fprintf(stderr, "Failed to unmap memory for axi slaves!  Exiting");
         return 1;
     }
     printf("done\n");
@@ -149,7 +149,7 @@ int mmapAxiSlaves() {
     int mem_fd = 0;
     mem_fd = open("/dev/mem", O_RDWR);
     if (mem_fd == -1) {
-        printf("Error! mem_fd: 0x%x\n", mem_fd);
+        fprintf(stderr, "Error! mem_fd: 0x%x\n", mem_fd);
         return 1;
     }
 
@@ -180,7 +180,7 @@ int munmapAxiSlaves() {
 int establishSocket() {
     struct sockaddr_in serv_addr;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("Socket creation error! ");
+        fprintf(stderr, "Socket creation error! ");
         return 1;
     }
 
@@ -190,12 +190,12 @@ int establishSocket() {
 
     // Convert IPv4 and IPv6 addresses from text to binary form
     if (inet_pton(AF_INET, SOCKSERV, &serv_addr.sin_addr) <= 0) {
-        printf("Invalid address! ");
+        fprintf(stderr, "Invalid address! ");
         return 2;
     }
 
     if (connect(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        printf("Connection failed! ");
+        fprintf(stderr, "Connection failed! ");
         return 3;
     }
 

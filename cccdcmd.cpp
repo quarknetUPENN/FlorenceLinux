@@ -20,7 +20,7 @@ int munmapAxiSlaves();
 int main(int argc, char *argv[]){
     printf("Memory mapping the axi slaves...");
     if (mmapAxiSlaves() != 0) {
-        printf("Failed!  Exiting");
+        fprintf(stderr, "Failed!  Exiting");
         return 1;
     }
     printf("done\n");
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
             break;
 
         default:
-            printf("Incorrect number of arguments supplied\n");
+            fprintf(stderr, "Incorrect number of arguments supplied\n");
     }
 
     // if this was a read operation, print the value we got back
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]){
 
     printf("Unmapping the axi slaves from memory...");
     if (munmapAxiSlaves() != 0) {
-        printf("Failed to unmap memory for axi slaves!  Exiting");
+        fprintf(stderr, "Failed to unmap memory for axi slaves!  Exiting");
         return 1;
     }
     printf("done\n");
@@ -73,7 +73,7 @@ int mmapAxiSlaves() {
     int mem_fd = 0;                 // /dev/mem memory file descriptor
     mem_fd = open("/dev/mem", O_RDWR);
     if (mem_fd == -1) {
-        printf("Error! mem_fd: 0x%x\n", mem_fd);
+        fprintf(stderr, "Error! mem_fd: 0x%x\n", mem_fd);
         return 1;
     }
 
