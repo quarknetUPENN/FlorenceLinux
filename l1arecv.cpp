@@ -111,7 +111,7 @@ void getL1aSet(int l1as_to_send) {
     tdc[0] = 0b10000000000000000000000000000000;
 
     int l1as_sent = 0;
-    int consecutive_dips_errors = 0;
+    bool firstdipserror = true;
     while (true) {
         if (l1as_to_send != -1) {
             if (l1as_sent >= l1as_to_send) {
@@ -121,22 +121,19 @@ void getL1aSet(int l1as_to_send) {
 
         // make sure we aren't empty or overflowed.  If we aren't, then send all of the information in dips over
         // the socket, using "Divider" to signify the start of a new L1A
-        if (dips[2] == 0) {
-            consecutive_dips_errors = 0;
-            sockSend("Divider\n");
-            for (int j = 0; j < 662; j++) {
-                sockSend("[" + std::__cxx11::to_string(dips[0]) + "," + std::__cxx11::to_string(dips[1]) + "," +
-                         std::__cxx11::to_string(dips[2]) + "]\n");
-            }
-            l1as_sent++;
-        } else {
-            if (consecutive_dips_errors > 20){
-                sockSend("dips error "+std::to_string(dips[2])+"\n");
-            }
-
-            consecutive_dips_errors++;
-            for (int block = 0; block < 100000; ++block) {
-
+        if (dips[1] >= 660) { // this should be 662 but the read count is 2 short, possibly due to FPGA sync stages across the FIFO clock domains
+            if (dips[2] == 0) {
+                firstdipserror = true;
+                sockSend("Divider\n");
+                for (int j = 0; j < 662; j++) {
+                    sockSend("[" + std::__cxx11::to_string(dips[0]) + "," + std::__cxx11::to_string(dips[1]) + "," +
+                             std::__cxx11::to_string(dips[2]) + "]\n");
+                }
+                l1as_sent++;
+            } else {
+                if (!firstdipserror)
+                    sockSend("dips error " + std::to_string(dips[1]) + " " + std::to_string(dips[2]) + "\n");
+                firstdipserror = false;
             }
         }
     }
