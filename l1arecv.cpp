@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed!  Exiting");
         return 1;
     }
+    printf("comms is pointing to %x\n", comms);
     printf("done\n");
 
     printf("Establishing socket connection to %s on port %u...", SOCKSERV, PORT);
@@ -64,7 +65,7 @@ int main(int argc, char *argv[]) {
     // For each number in the file, set the thresholds to that value and then send l1as_to_send number of l1as
     switch(argc){
         case 1: {
-            getL1aSet(l1as_to_send);
+	    getL1aSet(l1as_to_send);
             break;
         }
         case 2: {
@@ -89,7 +90,6 @@ int main(int argc, char *argv[]) {
             getL1aSet(l1as_to_send);
             break;
     }
-
     sockSend("End\n");
     tdc[0] = 0;
 
@@ -154,6 +154,10 @@ int mmapAxiSlaves() {
     dips = (volatile unsigned int *) mmap(NULL, 64000, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0x43C20000);
     tdc = (volatile unsigned int *) mmap(NULL, 64000, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0x43C10000);
 
+//    comms = (volatile unsigned int *) mmap(0x43c00000, 64000, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0x43C00000);
+//    dips = (volatile unsigned int *) mmap(NULL, 64000, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0x43C20000);
+//    tdc = (volatile unsigned int *) mmap(NULL, 64000, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0x43C10000);
+
     if ((comms == MAP_FAILED) || (dips == MAP_FAILED) || (tdc == MAP_FAILED)) {
         return 1;
     }
@@ -204,5 +208,3 @@ void sockSend(const std::string msg){
     const char * msgpt = msg.c_str();
     send(sock, msgpt, strlen(msgpt), 0);
 }
-
-

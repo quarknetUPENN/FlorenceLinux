@@ -23,6 +23,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Failed!  Exiting");
         return 1;
     }
+    printf("comms * is at %x \n", comms);
     printf("done\n");
 
     std::map<std::string,registers> regmap = {{"Config", Config},
