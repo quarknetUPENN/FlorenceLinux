@@ -26,15 +26,18 @@ int mmapAxiSlaves();
 
 int munmapAxiSlaves();
 
+void testChip(int boardnum, int id, FILE *results);
+
 int testReg(enum reg registers, int id, int value);
 
-int compareOutput(volatile void *ptr, int regLength, int inputVal);
+int compareOutput(volatile void *ptr, int regLength, unsigned int inputVal);
 
 int testHardRst(int id);
 
 int main(int argc, char *argv[]) {
-    int boardnum, id, configErr, thr1Err, thr2Err, rstErr, statusReg;
-    bool isBistFinished, bistResult;
+    int boardnum, id;
+    char changeId;
+
     FILE *results;
     
     results = fopen("testResultsDTMROC.csv", "a");
@@ -58,6 +61,42 @@ int main(int argc, char *argv[]) {
     scanf("%d", &boardnum);
     
     for(id = 62; id <= 63; id++){
+        testChip(boardnum, id, results);
+    }
+    
+    
+    // test id switch
+    printf("\n\nchange board id to 00000? (y/n)");
+    //changeId = fgetc(stdin);
+    scanf(" %c", &changeId);
+    if(changeId == 'n'){
+        return 1;
+    }else {
+        for(id = 0; id <= 1; id++){
+            testChip(boardnum, id, results);
+        }
+    }
+
+
+    // close file & exit
+    printf("Unmapping the axi slaves from memory...");
+    if (munmapAxiSlaves() != 0) {
+        fprintf(stderr, "Failed to unmap memory for axi slaves!  Exiting");
+        return 1;
+    }
+    printf("done\n");
+    printf("Exiting cleanly.\n");
+    
+    fclose(results);
+    return 0;
+}
+
+void testChip(int boardnum, int id, FILE *results){
+        int configErr, thr1Err, thr2Err, rstErr, statusReg;
+        bool isBistFinished, bistResult;
+        
+        printf("\nboard number: %0d    chip id: %X\n", boardnum, id);
+
         // init error indicators
         configErr = thr1Err = thr2Err = rstErr = 0;
         
@@ -79,67 +118,39 @@ int main(int argc, char *argv[]) {
         printf("status before BIST:");
         printb(&comms[10]);
         cccd(comms, Reg, WR, Config, id, 65);     //start bist 
-        printf("status after BIST:");
+
         do {
             cccd(comms, Reg, RD, Status, id);   
             //bit 8 and 10 are progress flags, is 1 when finished 
             isBistFinished = (comms[10] >> 8 & 1 ) & (comms[10] >> 10 & 1); 
-            printf("finished: %X\n", isBistFinished);
+            printf("    finished: %X\n", isBistFinished);
         }while(isBistFinished == false);
         bistResult = (comms[10] >> 9 & 1 ) & (comms[10] >> 11 & 1); 
         statusReg = comms[10];
         printf("BIST result: %X\n", bistResult);
-        printf("printb status reg: ");
+        printf("status after BIST: ");
         printb(&comms[10]);
-        printf("printf status reg: %04X\n", statusReg);
 
-        // test reset line
+        //test rst line
         rstErr = testHardRst(id);
-        
-        
-	    //tests
-	    //cccd(comms, Reg, WR, Thresh1, id, 0x00AA);
-	    //printf("%X",compareOutput(&comms[10], 24, 0xAAAA));
-	
 
 	
 	    //write to csv
            //"Board ID, 2V5, 3V3, Config errors, Thresh1 errors, Thresh2 errors, Status, BIST result
-        fprintf(results, "%d, %d, %d, %d, %d, %d, %X, %d\n", 
+        fprintf(results, "%02d, %02d, %03X, %02X, %02X, %03X, %08X, %X\n", 
                 boardnum, id, configErr, thr1Err, thr2Err, rstErr, statusReg, bistResult);
-            
-        
-    }
-    
 
-    
-    // read config, thresh 1, 2, status again
-    
-    // test id switch
-    
-
-    // close file & exit
-    printf("Unmapping the axi slaves from memory...");
-    if (munmapAxiSlaves() != 0) {
-        fprintf(stderr, "Failed to unmap memory for axi slaves!  Exiting");
-        return 1;
-    }
-    printf("done\n");
-    printf("Exiting cleanly.\n");
-    
-    fclose(results);
-    return 0;
 }
 
 int testReg(enum reg registers, int id, int value){
     int regLen, result;
-    printf("testing board %d reg %03X\n", id, registers);
+    printf("testing chipid %02d reg %X\n", id, registers);
 
     cccd(comms, Reg, WR, registers, id, value);
     cccd(comms, Reg, RD, registers, id);
     
-    printf("value read from reg: ");
-    printb(&comms[10]);
+    //printf("value read from reg: ");
+    //printb(&comms[10]);
     
     switch (registers){
         case Config: regLen = 24; break;
@@ -150,7 +161,7 @@ int testReg(enum reg registers, int id, int value){
     }
     
     result = compareOutput(&comms[10], regLen, value);
-    printf("compare output error bytes: %X\n", result);
+    printf("    compare output error: %X\n", result);
     
     return result;
 }
@@ -159,25 +170,21 @@ int testReg(enum reg registers, int id, int value){
 
 // return the number of bytes that are different between input and read value
 // should return 0 for functional registers
-int compareOutput(volatile void *ptr, int regLength, int inputVal){
-    unsigned int size = regLength / 8;     
+int compareOutput(volatile void *ptr, int regLength, unsigned int inputVal){
+    unsigned int size = regLength / 8;    
+    unsigned int regVal = 0; 
     auto b = (unsigned char *) ptr;
-    int result = 0;
+    unsigned int result = 0;
     unsigned char currByte, inputByte;
     int i;
 
-    printf("input:%X  size: %X\n", inputVal, size);
-    for (i = sizeof(ptr)-size; i < sizeof(ptr); i++) {
-        currByte = b[i] & 0b11111111;
-        printf("    currByte:%0X ", currByte);
-        inputByte = inputVal & 0b11111111;
-        printf("    inputByte:%0X\n", inputByte);
-        inputVal = inputVal >> 8;
-        //result = result || !(currByte = inputByte);
-        if (currByte != inputByte) result ++;
-        //printf("    result: %0X\n", result);
-    }
-    //printf("result: %0X\n", result);
+    printf("    input:%X ", inputVal);
+    regVal = comms[10];
+    
+    regVal = regVal >> (32 - regLength);
+    printf("    read: %X\n", regVal);
+    
+    result = regVal ^ inputVal;     //result[i] is 1 if the two bits are different
 
     return result;
 }
@@ -186,11 +193,7 @@ int compareOutput(volatile void *ptr, int regLength, int inputVal){
 //if they are at the default value, returns the number of error bytes
 int testHardRst(int id){
     int delay = 0;
-    int errorCount = 0;
-    cccd(comms, Reg, WR, Thresh1, 63, 0xab582a);
-    cccd(comms, Reg, RD, Thresh1, 63);
-    printf("\nbefore reset: ");
-    printb(&comms[10]);
+    unsigned int errorCount = 0;
     
     // req_hard_rst = slv_reg0[0]    reset is comms[0] bit 0
     // reset is active high (not low as documented)
@@ -204,8 +207,8 @@ int testHardRst(int id){
     
     //config reg should be 0001 after rst
     cccd(comms, Reg, RD, Config, id);
-    printf("\n    config reg after reset: ");
-    printb(&comms[10]);
+    //printf("\n    config reg after reset: ");
+    //printb(&comms[10]);
     errorCount += compareOutput(&comms[10], 24, 0x00001);
     
     // thresh regs should be FFFF after rst
@@ -217,7 +220,12 @@ int testHardRst(int id){
     cccd(comms, Reg, RD, Thresh2, id);
     errorCount += compareOutput(&comms[10], 16, 0xFFFF);
     
-    printf("rst error count: %X\n", errorCount);
+    cccd(comms, Reg, RD, Status, id);
+    printf("    status reg after reset: ");
+    printb(&comms[10]);
+    //errorCount += compareOutput(&comms[10], 16, 0xFFFF);
+    
+    printf("    rst error: %X\n", errorCount);
     return errorCount;
 }
 
